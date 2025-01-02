@@ -1,0 +1,44 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v3
+
+    - name: Log in to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build Docker image
+      run: |
+        docker build -t node .
+
+    - name: Tag Docker image to ECR
+      run: |
+        docker tag node:latest 867344443923.dkr.ecr.us-east-1.amazonaws.com/node:latest
+        
+    - name: Push Docker image to ECR
+      run: |
+        docker push 867344443923.dkr.ecr.us-east-1.amazonaws.com/node:latest
+
+    - name: Update ECS service with new task definition
+      run: |
+          aws ecs update-service \
+            --cluster curso-modulo-ecs \
+            --service service-ecr-module-ecs \
+            --task-definition arn:aws:ecs:us-east-1:867344443923:task-definition/task-new-ecs:1 \
+            --force-new-deployment \
+            --region ${{ secrets.AWS_REGION }}
+      
