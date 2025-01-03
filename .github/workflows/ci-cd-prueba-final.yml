@@ -1,0 +1,52 @@
+name: CI/CD Prueba final 
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  # Variables generales
+  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+
+jobs:
+  snyk-scan:
+    name: Escaneo de Terraform con Snyk
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Instalar Snyk CLI
+        run: npm install -g snyk
+
+      - name: Escaneo de Snyk en archivos Terraform
+        run: snyk iac test
+
+  aws-resource-creation:
+    name: Creación de recursos en AWS
+    runs-on: ubuntu-latest
+    needs: snyk-scan  # Este job depende de que el escaneo de Snyk termine correctamente
+    continue-on-error: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform -chdir="./Terraform/pg_modular" init
+
+      - name: Terraform Plan
+        run: terraform -chdir="./Terraform/pg_modular" plan
+
+#      - name: Terraform Apply
+#        run: terraform -chdir="./Terraform/pg_modular" apply -auto-approve
